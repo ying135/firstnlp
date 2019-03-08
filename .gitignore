@@ -1,0 +1,7 @@
+__pycache__/*
+snapshot/*
+.idea/*
+en_vi/*
+data/*
+*.png
+*.txt
