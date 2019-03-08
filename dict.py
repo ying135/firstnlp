@@ -33,7 +33,7 @@ class Dict(object):
         pass
 
     def writefile(self, file):
-        with open(file,'w') as f:
+        with open(file, 'w', encoding='utf8') as f:
             for i in range(self.__len__()):
                 word = self.idx2word[i]
                 f.write('%s %d\n' % (word, i))
