@@ -12,7 +12,6 @@ class m2mdata(data.Dataset):
         self.tgtstrf = roots['tgtstrf']
         self.length = roots['length']
 
-
     def __getitem__(self, item):
         item = item + 1
         srcind = list(map(int, linecache.getline(self.srcindf, item).strip().split()))
@@ -36,13 +35,15 @@ def padding(data):
         end = src_len[i]
         src_pad[i, :end] = torch.LongTensor(s[:end])
 
-    tgt_len = [len(s) for s in srcind]
+    tgt_len = [len(s) for s in tgtind]
+    # it's not the length of original tgt sentence, it's plus 2, bos and eos
     tgt_pad = torch.zeros(len(tgtind), max(tgt_len)).long()
     for i, s in enumerate(tgtind):
         end = tgt_len[i]
         tgt_pad[i, :end] = torch.LongTensor(s[:end])
 
-    return src_pad, tgt_pad, torch.Tensor(src_len).long(), torch.Tensor(tgt_len).long(), srcstr, tgtstr
+    return src_pad.t(), tgt_pad.t(), torch.LongTensor(src_len), \
+           torch.LongTensor(tgt_len), srcstr, tgtstr
 
 
 # many to one

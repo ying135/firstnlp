@@ -78,10 +78,12 @@ def main():
 
     if opt.train:
         trainloader, validloader, dict_src, dict_tgt = load_data(opt.train)
+        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
         print("START training...")
         train(model, trainloader, validloader)
     else:
         testloader, dict_src, dict_tgt = load_data(opt.train)
+        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
         print("START testing...")
         test(model, testloader)
 
