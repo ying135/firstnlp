@@ -7,7 +7,7 @@ class DefaultConfig(object):
     data_ratio = 1  # the proportion of trainset
     use_embedvector_src = False
     use_embedvector_tgt = False
-    embeddim = 300
+    embeddim = 100
     voca_length_src = 123  # 123 is written randomly, its value will be modified in the main.py
     voca_length_tgt = 456
 
@@ -17,9 +17,12 @@ class DefaultConfig(object):
     lr = 0.001
     weight_decay = 0e-5
     lr_decay = 0.5
-    print_inter = 20
 
-    hidden_size = 256
+    print_inter = 20
+    val_inter = 100
+
+    hidden_size_encoder = 256
+    hidden_size_decoder = 256
     dropout = 0
 
     use_cuda = torch.cuda.is_available()

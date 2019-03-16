@@ -48,9 +48,9 @@ def train(model, trainloader, validloader):
     previous_loss = 1e10
     pEpoch = []
     pLoss = []
-
+    iter_all = 0
+    total_loss, total_num = 0, 0
     for epoch in range(opt.epoch):
-
         for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(trainloader):
             if opt.use_cuda:
                 input = input.cuda()
@@ -58,32 +58,54 @@ def train(model, trainloader, validloader):
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
             optimizer.zero_grad()
+            outputs, targets = model(input, src_len, target)
+            loss, num_total, num_correct = model.compute_loss(outputs, targets)
+            total_loss += loss
+            total_num += num_total
+            optimizer.step()
+            print('Epoch:{}|iter:{}|train loss:{}\n'.format(epoch, i, total_loss / float(total_num)))
+
+            iter_all += 1
+
+            if iter_all % opt.val_inter == 0:
+                print('Epoch:{}|iter:{}|iter_all:{}|train loss:{}\n'.format(epoch, i, iter_all, total_loss/float(total_num)))
+                score = valid(model, validloader)
+
+                total_num, total_loss = 0, 0
 
 
 
 
 def valid(model, validloader):
-    pass
+    model.eval()
+    score = {}
+
+    model.train()
+    return score
 
 
 def test(model, testloader):
     pass
 
 
-def main():
-    model = models.seq2seq()
+def load_model():
+    model = models.seq2seq(opt)
     if opt.load_model_path:
         model.load_state_dict(torch.load(opt.load_model_path))
         print("Load Success!", opt.load_model_path)
+    return model
 
+def main():
     if opt.train:
         trainloader, validloader, dict_src, dict_tgt = load_data(opt.train)
         opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
+        model = load_model()
         print("START training...")
         train(model, trainloader, validloader)
     else:
         testloader, dict_src, dict_tgt = load_data(opt.train)
         opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
+        model = load_model()
         print("START testing...")
         test(model, testloader)
 

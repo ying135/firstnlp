@@ -5,3 +5,4 @@ en_vi/*
 data/*
 *.png
 *.txt
+*.pyc
