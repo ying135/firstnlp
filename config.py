@@ -21,6 +21,7 @@ class DefaultConfig(object):
     print_inter = 20
     val_inter = 100
 
+    beam_size = 5
     hidden_size_encoder = 256
     hidden_size_decoder = 256
     dropout = 0

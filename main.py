@@ -74,10 +74,19 @@ def train(model, trainloader, validloader):
                 total_num, total_loss = 0, 0
 
 
-
-
 def valid(model, validloader):
     model.eval()
+    for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(validloader):
+        if opt.use_cuda:
+            input = input.cuda()
+            target = target.cuda()
+            src_len = src_len.cuda()
+            tgt_len = tgt_len.cuda()
+        samples, alignment = model.beam_sample(input, src_len, opt.beam_size)
+
+
+
+
     score = {}
 
     model.train()
