@@ -2,9 +2,11 @@ import torch.nn as nn
 import torch
 import models
 
+
 class seq2seq(nn.Module):
     def __init__(self, opt):
         super(seq2seq, self).__init__()
+        self.opt = opt
         self.encoder = models.rnn_encoder(opt)
         self.decoder = models.rnn_decoder(opt)
         self.criterion = models.criterion(opt.voca_length_tgt, opt.use_cuda)

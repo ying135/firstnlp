@@ -54,7 +54,7 @@ def train(model, trainloader, validloader):
         for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(trainloader):
             if opt.use_cuda:
                 input = input.cuda()
-                taget = target.cuda()
+                target = target.cuda()
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
             optimizer.zero_grad()
