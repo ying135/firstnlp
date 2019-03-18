@@ -5,6 +5,7 @@ import pickle
 import os
 import datasetmaker
 import models
+import dict
 
 opt = config.DefaultConfig()
 
@@ -76,6 +77,7 @@ def train(model, trainloader, validloader):
 
 def valid(model, validloader):
     model.eval()
+    candidate, source, reference, alignments = [], [], [], []
     for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(validloader):
         if opt.use_cuda:
             input = input.cuda()
@@ -84,10 +86,36 @@ def valid(model, validloader):
             tgt_len = tgt_len.cuda()
         samples, alignment = model.beam_sample(input, src_len, opt.beam_size)
 
+        candidate += [opt.dict_tgt.idx2words(s, dict.EOS) for s in samples]
+        source += inputstr
+        reference += targetstr
+        alignments += [align for align in alignment]
+        print("alfdlfldldglgldsflaslfl")
+        # for i in range(len(candidate)):
+        #     print(source[i])
+        #     print(reference[i])
+        #     print(candidate[i])
 
 
+
+    if opt.replace_unk:
+        cands = []
+        for s, c, align in zip(source, candidate, alignments):
+            cand = []
+            for word, idx in zip(c, align):
+                if word == dict.UNK_WORD and idx < len(s):
+                    try:
+                        cand.append(s[idx])
+                    except:
+                        cand.append(word)
+                        print("%d %d\n" % (len(s), idx))
+                else:
+                    cand.append(word)
+            cands.append(cand)
+        candidate = cands
 
     score = {}
+    # result = eval.eval_metrics(reference, candidate, )
 
     model.train()
     return score
@@ -104,16 +132,19 @@ def load_model():
         print("Load Success!", opt.load_model_path)
     return model
 
+
 def main():
     if opt.train:
         trainloader, validloader, dict_src, dict_tgt = load_data(opt.train)
-        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
+        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt),
+                   'dict_tgt':dict_tgt})
         model = load_model()
         print("START training...")
         train(model, trainloader, validloader)
     else:
         testloader, dict_src, dict_tgt = load_data(opt.train)
-        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt)})
+        opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt),
+                   'dict_tgt':dict_tgt})
         model = load_model()
         print("START testing...")
         test(model, testloader)

@@ -76,3 +76,18 @@ class Dict(object):
             idxVec += [self.lookup(eosword)]
         return idxVec
 
+    def lookupword(self, ke, defau=None):
+        try:
+            return self.idx2word[ke]
+        except KeyError:
+            return defau
+
+    def idx2words(self, idx, stop):
+        words = []
+        for i in idx:
+            if i == stop:
+                break
+            words += [self.lookupword(i)]
+        return words
+
+

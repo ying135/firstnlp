@@ -47,6 +47,8 @@ class rnn_decoder(nn.Module):
         else:
             self.embed = nn.Embedding(voca_length, embed_dim)
 
+        self.opt = opt
+        # my rnn is different with yang, his input will be 1 dim, mine is 2 dim
         self.rnn = nn.LSTM(input_size=embed_dim, hidden_size=hidden_size,
                            dropout=opt.dropout)
         self.linear = nn.Linear(hidden_size, voca_length)
@@ -73,5 +75,14 @@ class rnn_decoder(nn.Module):
     def compute_score(self, outputs):
         scores = self.linear(outputs)
         return scores
+
+    def sample_one(self, input, state, contexts):
+        emb = self.embed(input).unsqueeze(0)    # (1, beam_size * batch, embeddim)
+        output, state = self.rnn(emb, state)
+        hidden, attn_weights = self.attention(output, contexts)
+        # (beam_size *batch, hidden_size),(beam_size *batch, seq_len_src)
+        output = self.compute_score(hidden) # (batch, vocalength)
+
+        return output, state, attn_weights
 
 
