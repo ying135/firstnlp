@@ -65,13 +65,11 @@ def train(model, trainloader, validloader, params):
                 target = target.cuda()
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
-            optimizer.zero_grad()
+            model.zero_grad()
 
             outputs, targets = model(input, src_len, target)
             loss, num_total, num_correct = model.compute_loss(outputs, targets)
-            total_loss += loss
-            total_num += num_total
-
+            
             loss = torch.sum(loss) / num_total
             loss.backward()
             optimizer.step()
