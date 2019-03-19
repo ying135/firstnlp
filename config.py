@@ -20,7 +20,7 @@ class DefaultConfig(object):
     lr_decay = 0.5
 
     print_inter = 20
-    val_inter = 2
+    val_inter = 200
 
     beam_size = 5
     max_tgt_len = 25
@@ -30,8 +30,13 @@ class DefaultConfig(object):
 
     use_cuda = torch.cuda.is_available()
     root = 'data'
+    metrics: ['bleu']
+
+    max_grad_norm = 15
+    start_decay_at = 3
 
     replace_unk = True
+    char_tgt = False
 
     def parse(self, kwargs):
         for k, v in kwargs.items():

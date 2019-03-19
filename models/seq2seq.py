@@ -10,7 +10,7 @@ class seq2seq(nn.Module):
         self.opt = opt
         self.encoder = models.rnn_encoder(opt)
         self.decoder = models.rnn_decoder(opt)
-        self.criterion = models.criterion(opt.voca_length_tgt, opt.use_cuda)
+        self.criterion = models.criterion(opt.use_cuda)
         self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, src, src_len, tgt):
@@ -25,7 +25,7 @@ class seq2seq(nn.Module):
         # (tgt.size(0)-1, batch, hidden_size)
 
     def compute_loss(self, outputs, tgt):
-        return models.cross_entropy_loss(outputs, self.decoder, tgt, self.criterion)
+        return models.cross_entropy_loss(outputs, tgt, self.criterion)
 
     def beam_sample(self, src, src_len, beam_size=1):
         # pytorch tutorial say it's useful, i didn't check

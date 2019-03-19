@@ -59,6 +59,7 @@ class rnn_decoder(nn.Module):
         # contexts (batch, seq_len, hidden_size)
         embeds = self.embed(x)
         outputs, state, attns = [], init_state, []
+        # don't know why it must split, someday try to improve it
         for emb in embeds.split(1):
             # output, state = self.rnn(emb.squeeze(0), state)
             # I guess, yang's rnn is stacked LSTM, so need squeeze
@@ -68,10 +69,10 @@ class rnn_decoder(nn.Module):
             outputs += [output]
             attns += [attn_weights]
         outputs = torch.stack(outputs)  # guess (x.size(0), batch, hidden_size) x.size(0) is seq_len_tgt-1(1 is <eos>)
+        outputs = self.compute_score(outputs)   # (x.size(0), batch, voca_length)
         attns = torch.stack(attns)
         return outputs, state
 
-    # don't know why, just do as yang
     def compute_score(self, outputs):
         scores = self.linear(outputs)
         return scores

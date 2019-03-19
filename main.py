@@ -6,6 +6,10 @@ import os
 import datasetmaker
 import models
 import dict
+import time
+import utils
+import codecs
+import optims
 
 opt = config.DefaultConfig()
 
@@ -39,13 +43,16 @@ def load_data(train):
         return testloader, dict_src, dict_tgt
 
 
-def train(model, trainloader, validloader):
+def train(model, trainloader, validloader, params):
     if opt.use_cuda:
         model = model.cuda()
     model.train()
     criterion = torch.nn.CrossEntropyLoss()
     lr = opt.lr
-    optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=opt.weight_decay)
+    # mine is so easy, copy deconv's optim
+    optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
+    optimizer.set_parameters(model.parameters())
+    # optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=opt.weight_decay)
     previous_loss = 1e10
     pEpoch = []
     pLoss = []
@@ -59,23 +66,47 @@ def train(model, trainloader, validloader):
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
             optimizer.zero_grad()
+
             outputs, targets = model(input, src_len, target)
             loss, num_total, num_correct = model.compute_loss(outputs, targets)
             total_loss += loss
             total_num += num_total
+
+            loss = torch.sum(loss) / num_total
+            loss.backward()
             optimizer.step()
-            print('Epoch:{}|iter:{}|train loss:{}\n'.format(epoch, i, total_loss / float(total_num)))
 
-            iter_all += 1
+            params['report_loss'] += float(loss)
+            params['report_correct'] += num_correct
+            params['report_total'] += num_total
 
-            if iter_all % opt.val_inter == 0:
-                print('Epoch:{}|iter:{}|iter_all:{}|train loss:{}\n'.format(epoch, i, iter_all, total_loss/float(total_num)))
-                score = valid(model, validloader)
+        utils.progress_bar(params['updates'], opt.val_inter)
+        params['updates'] += 1
 
-                total_num, total_loss = 0, 0
+        if params['updates'] % opt.val_inter == 0:
+            params['log']("epoch: %3d, loss: %6.3f, time: %6.3f, updates: %8d, accuracy: %2.2f\n"
+                          % (epoch, params['report_loss'], time.time() - params['report_time'],
+                             params['updates'], params['report_correct'] * 100.0 / params['report_total']))
+            print('evaluating after %d updates...\r' % params['updates'])
+            score = valid(model, validloader, params)
+            for metric in opt.metrics:
+                params[metric].append(score[metric])
+                if score[metric] >= max(params[metric]):
+                    with codecs.open(params['log_path'] + 'best_' + metric + '_prediction.txt', 'w', 'utf-8') as f:
+                        f.write(codecs.open(params['log_path'] + 'candidate.txt', 'r', 'utf-8').read())
+                    # save_model(params['log_path'] + 'best_' + metric + '_checkpoint.pt', model, optim,
+                    #            params['updates'])
+            params['report_loss'], params['report_time'] = 0, time.time()
+            params['report_correct'], params['report_total'] = 0, 0
+
+        # if params['updates'] % config.save_interval == 0:
+        #     save_model(params['log_path'] + 'checkpoint.pt', model, optim, params['updates'])
+
+        # update lr
+        optimizer.updateLearningRate(score=0, epoch=epoch)
 
 
-def valid(model, validloader):
+def valid(model, validloader, params):
     model.eval()
     candidate, source, reference, alignments = [], [], [], []
     for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(validloader):
@@ -84,19 +115,20 @@ def valid(model, validloader):
             target = target.cuda()
             src_len = src_len.cuda()
             tgt_len = tgt_len.cuda()
-        samples, alignment = model.beam_sample(input, src_len, opt.beam_size)
+
+        with torch.no_grad():
+            if opt.beam_size > 1:
+                samples, alignment = model.beam_sample(input, src_len, opt.beam_size)
 
         candidate += [opt.dict_tgt.idx2words(s, dict.EOS) for s in samples]
         source += inputstr
         reference += targetstr
         alignments += [align for align in alignment]
-        print("alfdlfldldglgldsflaslfl")
+        utils.progress_bar(i, len(validloader))
         # for i in range(len(candidate)):
         #     print(source[i])
         #     print(reference[i])
         #     print(candidate[i])
-
-
 
     if opt.replace_unk:
         cands = []
@@ -112,11 +144,18 @@ def valid(model, validloader):
                 else:
                     cand.append(word)
             cands.append(cand)
+            if len(cand) == 0:
+                print('Error!')
         candidate = cands
 
-    score = {}
-    # result = eval.eval_metrics(reference, candidate, )
+    with codecs.open(params['log_path'] + 'candidate.txt', 'w+', 'utf-8') as f:
+        for i in range(len(candidate)):
+            f.write(" ".join(candidate[i]) + '\n')
 
+
+    score = {}
+    for metric in opt.metrics:
+        score[metric] = getattr(utils, metric)(reference, candidate, params['log_path'], params['log'], opt)
     model.train()
     return score
 
@@ -133,14 +172,20 @@ def load_model():
     return model
 
 
+
+
 def main():
     if opt.train:
         trainloader, validloader, dict_src, dict_tgt = load_data(opt.train)
         opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt),
                    'dict_tgt':dict_tgt})
         model = load_model()
+        print_log, log_path = utils.build_log()
+        params = {'updates': 0, 'report_loss': 0, 'report_total': 0,
+                  'report_correct': 0, 'report_time': time.time(),
+                  'log': print_log, 'log_path': log_path}
         print("START training...")
-        train(model, trainloader, validloader)
+        train(model, trainloader, validloader, params)
     else:
         testloader, dict_src, dict_tgt = load_data(opt.train)
         opt.parse({'voca_length_src': len(dict_src), 'voca_length_tgt': len(dict_tgt),

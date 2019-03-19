@@ -2,26 +2,19 @@ import torch
 import dict
 
 
-def criterion(voca_length, usecuda):
-    weight = torch.ones(voca_length)
-    weight[dict.PAD] = 0
-    crit = torch.nn.CrossEntropyLoss(weight, size_average=False)
+def criterion(usecuda):
+    crit = torch.nn.CrossEntropyLoss(ignore_index=dict.PAD, reduction='none')
     if usecuda:
         crit = crit.cuda()
     return crit
 
 
-def cross_entropy_loss(hidden_outputs, decoder, targets, criterion):
-    outputs = hidden_outputs.view(-1, hidden_outputs.size(2))   # (targets.size(0)*batch, hidden_size)
-    scores = decoder.compute_score(outputs)     # (targets.size(0)*batch, voca_length_tgt)
-    # yang didn't change targets into targets.view(-1)
-    # i'm not sure the code below is correct or not
-    targets = targets.view(-1)
-    loss = criterion(scores, targets)
-    pred = torch.max(scores, 1)[1]
-    num_correct = pred.data.eq(targets.data).masked_select(targets.ne(dict.PAD).data).sum()
-    num_total = targets.ne(dict.PAD).data.sum()
-    # [guess]didn't change the data inside loss?so it can backward?
-    loss.div(num_total.float()).backward()
-    loss = float(loss)
+def cross_entropy_loss(scores, targets, criterion):
+    scoresc = scores.view(-1, scores.size(2))   # (targets.size(0)*batch, voca_length_tgt)
+    # yang didn't change targets into targets.view(-1) targets = targets.view(-1)
+    loss = criterion(scoresc, targets.contiguous().view(-1))
+
+    pred = torch.max(scores, 2)[1]
+    num_correct = pred.eq(targets).masked_select(targets.ne(dict.PAD)).sum().item()
+    num_total = targets.ne(dict.PAD).sum().item()
     return loss, num_total, num_correct
