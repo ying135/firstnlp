@@ -29,7 +29,7 @@ def bleu(reference, candidate, log_path, print_log, config):
     os.system(command)
     with open(temp) as ft:
         result = ft.read()
-    os.remove(temp)
+    # os.remove(temp)
     print_log(result)
 
     return float(result.split()[2][:-1])

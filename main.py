@@ -10,6 +10,7 @@ import time
 import utils
 import codecs
 import optims
+import metrics
 
 opt = config.DefaultConfig()
 
@@ -47,12 +48,10 @@ def train(model, trainloader, validloader, params):
     if opt.use_cuda:
         model = model.cuda()
     model.train()
-    criterion = torch.nn.CrossEntropyLoss()
-    lr = opt.lr
     # mine is so easy, copy deconv's optim
-    optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
-    optimizer.set_parameters(model.parameters())
-    # optimizer = torch.optim.Adam(model.parameters(), lr, weight_decay=opt.weight_decay)
+    # optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
+    # optimizer.set_parameters(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
     previous_loss = 1e10
     pEpoch = []
     pLoss = []
@@ -65,43 +64,54 @@ def train(model, trainloader, validloader, params):
                 target = target.cuda()
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
-            model.zero_grad()
+            # optimizer.optimizer.zero_grad()   # not sure about this , usually optimizer.zreo_grad()
+            optimizer.zero_grad()
 
-            outputs, targets = model(input, src_len, target)
-            loss, num_total, num_correct = model.compute_loss(outputs, targets)
-            
-            loss = torch.sum(loss) / num_total
-            loss.backward()
-            optimizer.step()
+            try:
+                outputs, targets = model(input, src_len, target)
+                loss, num_total, num_correct = model.compute_loss(outputs, targets)
 
-            params['report_loss'] += float(loss)
-            params['report_correct'] += num_correct
-            params['report_total'] += num_total
+                loss = torch.sum(loss) / num_total
+                loss.backward()
+                optimizer.step()
 
-        utils.progress_bar(params['updates'], opt.val_inter)
-        params['updates'] += 1
+                params['report_loss'] += float(loss)
+                params['report_correct'] += num_correct
+                params['report_total'] += num_total
+            except RuntimeError as e:
+                if 'out of memory' in str(e):
+                    print('| WARNING: ran out of memory')
+                    if hasattr(torch.cuda, 'empty_cache'):
+                        torch.cuda.empty_cache()
+                else:
+                    raise e
 
-        if params['updates'] % opt.val_inter == 0:
-            params['log']("epoch: %3d, loss: %6.3f, time: %6.3f, updates: %8d, accuracy: %2.2f\n"
-                          % (epoch, params['report_loss'], time.time() - params['report_time'],
-                             params['updates'], params['report_correct'] * 100.0 / params['report_total']))
-            print('evaluating after %d updates...\r' % params['updates'])
-            score = valid(model, validloader, params)
-            for metric in opt.metrics:
-                params[metric].append(score[metric])
-                if score[metric] >= max(params[metric]):
-                    with codecs.open(params['log_path'] + 'best_' + metric + '_prediction.txt', 'w', 'utf-8') as f:
-                        f.write(codecs.open(params['log_path'] + 'candidate.txt', 'r', 'utf-8').read())
-                    # save_model(params['log_path'] + 'best_' + metric + '_checkpoint.pt', model, optim,
-                    #            params['updates'])
-            params['report_loss'], params['report_time'] = 0, time.time()
-            params['report_correct'], params['report_total'] = 0, 0
+            utils.progress_bar(params['updates'], opt.val_inter)
+            params['updates'] += 1
+
+            if params['updates'] % opt.val_inter == 0:
+                params['log']("epoch: %3d, loss: %6.3f, time: %6.3f, updates: %8d, accuracy: %2.2f\n"
+                              % (epoch, params['report_loss'], time.time() - params['report_time'],
+                                 params['updates'], params['report_correct'] * 100.0 / params['report_total']))
+                print('evaluating after %d updates...\r' % params['updates'])
+                score = valid(model, validloader, params)
+                for metric in opt.metrics:
+                    params[metric].append(score[metric])
+                    if score[metric] >= max(params[metric]):
+                        with codecs.open(params['log_path'] + 'best_' + metric + '_prediction.txt', 'w', 'utf-8') as f:
+                            f.write(codecs.open(params['log_path'] + 'candidate.txt', 'r', 'utf-8').read())
+                        # save_model(params['log_path'] + 'best_' + metric + '_checkpoint.pt', model, optim,
+                        #            params['updates'])
+                params['report_loss'], params['report_time'] = 0, time.time()
+                params['report_correct'], params['report_total'] = 0, 0
+
+
 
         # if params['updates'] % config.save_interval == 0:
         #     save_model(params['log_path'] + 'checkpoint.pt', model, optim, params['updates'])
 
         # update lr
-        optimizer.updateLearningRate(score=0, epoch=epoch)
+        # optimizer.updateLearningRate(score=0, epoch=epoch)
 
 
 def valid(model, validloader, params):
@@ -150,10 +160,9 @@ def valid(model, validloader, params):
         for i in range(len(candidate)):
             f.write(" ".join(candidate[i]) + '\n')
 
-
     score = {}
     for metric in opt.metrics:
-        score[metric] = getattr(utils, metric)(reference, candidate, params['log_path'], params['log'], opt)
+        score[metric] = getattr(metrics, metric)(reference, candidate, params['log_path'], params['log'], opt)
     model.train()
     return score
 
@@ -182,6 +191,8 @@ def main():
         params = {'updates': 0, 'report_loss': 0, 'report_total': 0,
                   'report_correct': 0, 'report_time': time.time(),
                   'log': print_log, 'log_path': log_path}
+        for metric in opt.metrics:
+            params[metric] = []
         print("START training...")
         train(model, trainloader, validloader, params)
     else:

@@ -82,7 +82,7 @@ class rnn_decoder(nn.Module):
         output, state = self.rnn(emb, state)
         hidden, attn_weights = self.attention(output, contexts)
         # (beam_size *batch, hidden_size),(beam_size *batch, seq_len_src)
-        output = self.compute_score(hidden) # (batch, vocalength)
+        output = self.compute_score(hidden) # (beam_size *batch, vocalength)
 
         return output, state, attn_weights
 

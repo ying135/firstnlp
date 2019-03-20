@@ -1,6 +1,7 @@
 import os
 import time
 import sys
+import shutil
 
 
 def print_logf(file):
@@ -25,8 +26,10 @@ def build_log():
 
 
 TOTAL_BAR_LENGTH = 86.
-_, term_width = os.popen('stty size', 'r').read().split()
+term_width, _ = shutil.get_terminal_size()
 term_width = int(term_width)
+last_time = time.time()
+begin_time = last_time
 
 
 def progress_bar(current, total, msg=None):

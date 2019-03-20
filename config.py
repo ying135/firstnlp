@@ -12,15 +12,15 @@ class DefaultConfig(object):
     voca_length_tgt = 456
     dict_tgt = None     # will be updated in the main.py
 
-    epoch = 100
-    batch_size = 64
-    num_worker = 4
+    epoch = 5
+    batch_size = 32
+    num_worker = 0
     lr = 0.001
     weight_decay = 0e-5
     lr_decay = 0.5
 
     print_inter = 20
-    val_inter = 200
+    val_inter = 2000
 
     beam_size = 5
     max_tgt_len = 25
@@ -30,7 +30,7 @@ class DefaultConfig(object):
 
     use_cuda = torch.cuda.is_available()
     root = 'data'
-    metrics: ['bleu']
+    metrics = ['bleu']
 
     max_grad_norm = 15
     start_decay_at = 3

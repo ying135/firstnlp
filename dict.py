@@ -85,7 +85,9 @@ class Dict(object):
     def idx2words(self, idx, stop):
         words = []
         for i in idx:
+            i = i.item()
             if i == stop:
+                words += [self.lookupword(17)]
                 break
             words += [self.lookupword(i)]
         return words

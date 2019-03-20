@@ -5,12 +5,14 @@ import dict
 class Beam(object):
     def __init__(self, size, use_cuda, n_best=1):
         self.size = size
-        self.scores = torch.zeros(size).float()
+        self.tt = torch.cuda if use_cuda else torch
+
+        self.scores = self.tt.FloatTensor(size).zero_()
         self.allScores = []
 
         self.prevKs = []
 
-        self.nextYs = [torch.LongTensor(size).fill_(dict.EOS)]
+        self.nextYs = [self.tt.LongTensor(size).fill_(dict.EOS)]
         self.nextYs[0][0] = dict.BOS
 
         self._eos = dict.EOS
@@ -21,9 +23,6 @@ class Beam(object):
         self.finished = []  # (score, length-1, ith beam)
         self.n_best = n_best
 
-        if use_cuda:
-            self.scores.cuda()
-            self.nextYs.cuda()
 
     def getCurrentState(self):
         return self.nextYs[-1]
