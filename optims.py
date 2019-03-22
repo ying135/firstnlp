@@ -1,7 +1,6 @@
-import math
 import torch.optim as optim
-import torch.nn as nn
-from torch.nn.utils import clip_grad_norm
+from torch.nn.utils import clip_grad_norm_
+
 
 class Optim(object):
 
@@ -14,12 +13,14 @@ class Optim(object):
         elif self.method == 'adadelta':
             self.optimizer = optim.Adadelta(self.params, lr=self.lr)
         elif self.method == 'adam':
-            self.optimizer = optim.Adam(self.params, lr=self.lr)#, betas=(0.9, 0.98), eps=1e-9. weight_decay=0.00025, amsgrad=True)
+            self.optimizer = optim.Adam(self.params, lr=self.lr)
         else:
             raise RuntimeError("Invalid optim method: " + self.method)
 
-    def __init__(self, method, lr, max_grad_norm, lr_decay=1, start_decay_at=None):
-        self.last_ppl = None
+    def __init__(self, method, lr, max_grad_norm, lr_decay=1, start_decay_at=None, max_decay_times=2):
+        self.last_score = None
+        self.decay_times = 0
+        self.max_decay_times = max_decay_times
         self.lr = lr
         self.max_grad_norm = max_grad_norm
         self.method = method
@@ -30,19 +31,17 @@ class Optim(object):
     def step(self):
         # Compute gradients norm.
         if self.max_grad_norm:
-            clip_grad_norm(self.params, self.max_grad_norm)
+            clip_grad_norm_(self.params, self.max_grad_norm)
         self.optimizer.step()
 
     # decay learning rate if val perf does not improve or we hit the start_decay_at limit
-    def updateLearningRate(self, ppl, epoch):
+    def updateLearningRate(self, score, epoch):
         if self.start_decay_at is not None and epoch >= self.start_decay_at:
-            self.start_decay = True
-        if self.last_ppl is not None and ppl > self.last_ppl:
             self.start_decay = True
 
         if self.start_decay:
             self.lr = self.lr * self.lr_decay
             print("Decaying learning rate to %g" % self.lr)
 
-        self.last_ppl = ppl
+        self.last_score = score
         self.optimizer.param_groups[0]['lr'] = self.lr

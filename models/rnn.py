@@ -86,4 +86,21 @@ class rnn_decoder(nn.Module):
 
         return output, state, attn_weights
 
+    def sample(self, input, init_state, contexts):
+        inputs, outputs, sample_ids, state = [], [], [], init_state
+        attns = []
+        inputs += input
+        for i in range(self.opt.max_tgt_len):
+            output, state, attn_weights = self.sample_one(inputs[i], state, contexts)
+            # output (batch, vocalength)
+            predicted = output.max(1)[1]
+            inputs += [predicted]
+            sample_ids += [predicted]
+            outputs += [output]
+            attns += [attn_weights]
+
+        sample_ids = torch.stack(sample_ids)    # (max_tgt_len, batch)
+        attns = torch.stack(attns)  # (max_tgt_len, batch, seq_len_src)
+        return sample_ids, (outputs, attns)
+
 

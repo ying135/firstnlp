@@ -49,9 +49,9 @@ def train(model, trainloader, validloader, params):
         model = model.cuda()
     model.train()
     # mine is so easy, copy deconv's optim
-    # optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
-    # optimizer.set_parameters(model.parameters())
-    optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
+    optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
+    optimizer.set_parameters(model.parameters())
+    # optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
     previous_loss = 1e10
     pEpoch = []
     pLoss = []
@@ -64,8 +64,8 @@ def train(model, trainloader, validloader, params):
                 target = target.cuda()
                 src_len = src_len.cuda()
                 tgt_len = tgt_len.cuda()
-            # optimizer.optimizer.zero_grad()   # not sure about this , usually optimizer.zreo_grad()
-            optimizer.zero_grad()
+            optimizer.optimizer.zero_grad()   # not sure about this , usually optimizer.zreo_grad()
+            # optimizer.zero_grad()
 
             try:
                 outputs, targets = model(input, src_len, target)
@@ -111,7 +111,7 @@ def train(model, trainloader, validloader, params):
         #     save_model(params['log_path'] + 'checkpoint.pt', model, optim, params['updates'])
 
         # update lr
-        # optimizer.updateLearningRate(score=0, epoch=epoch)
+        optimizer.updateLearningRate(score=0, epoch=epoch)
 
 
 def valid(model, validloader, params):
@@ -127,6 +127,8 @@ def valid(model, validloader, params):
         with torch.no_grad():
             if opt.beam_size > 1:
                 samples, alignment = model.beam_sample(input, src_len, opt.beam_size)
+            else:
+                samples, alignment = model.sample(input, src_len)
 
         candidate += [opt.dict_tgt.idx2words(s, dict.EOS) for s in samples]
         source += inputstr

@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import models
+import dict
 
 
 class seq2seq(nn.Module):
@@ -27,6 +28,28 @@ class seq2seq(nn.Module):
     def compute_loss(self, outputs, tgt):
         return models.cross_entropy_loss(outputs, tgt, self.criterion)
 
+    # greedy search, beam_sample is beam search
+    def sample(self, src, src_len):
+        torch.set_grad_enabled(False)
+
+        lengths, indices = torch.sort(src_len, dim=0, descending=True)
+        _, ind = torch.sort(indices)
+        src = torch.index_select(src, dim=1, index=indices)
+        bos = torch.ones(src.size(1)).long().fill_(dict.BOS)    # (batch)
+        if self.opt.use_cuda:
+            bos = bos.cuda()
+
+        contexts, state = self.encoder(src, lengths.tolist())
+        sample_ids, final_outputs = self.decoder.sample([bos], state, contexts.transpose(0, 1))
+        _, attns_weight = final_outputs
+        alignments = attns_weight.max(2)[1]
+        sample_ids = torch.index_select(sample_ids, dim=1, index=ind)
+        alignments = torch.index_select(alignments, dim=1, index=ind)
+        # targets = tgt[1:]
+
+        return sample_ids.t(), alignments.t()
+
+    # beam_search
     def beam_sample(self, src, src_len, beam_size=1):
         # pytorch tutorial say it's useful, i didn't check
         torch.set_grad_enabled(False)
@@ -52,9 +75,9 @@ class seq2seq(nn.Module):
             # (beam_size * batch)
 
             output, decState, attn = self.decoder.sample_one(inp, decState, contexts)
-            soft_score = F.softmax(output, dim=1)  # (beamsize*batch, vocalength)
-            predicted = output.max(1)[1]
-            mask = predicted.unsqueeze(1).long()    # (beamsize*batch, 1)
+            # soft_score = F.softmax(output, dim=1)  # (beamsize*batch, vocalength)
+            # predicted = output.max(1)[1]
+            # mask = predicted.unsqueeze(1).long()    # (beamsize*batch, 1)
 
             output = self.log_softmax(output).view(beam_size, batch_size, -1)
             # (beamsize, batch, vocalength)     make them negative,why??
