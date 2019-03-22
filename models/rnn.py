@@ -53,7 +53,9 @@ class rnn_decoder(nn.Module):
                            dropout=opt.dropout)
         self.linear = nn.Linear(hidden_size, voca_length)
         self.dropout = nn.Dropout(opt.dropout)
-        self.attention = models.global_attention(hidden_size)
+        # self.attention = models.global_attention(hidden_size)
+        self.attention = getattr(models, opt.attention)(hidden_size)
+        print(opt.attention+' is loaded')
 
     def forward(self, x, init_state, contexts):
         # contexts (batch, seq_len, hidden_size)

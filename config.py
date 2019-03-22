@@ -12,17 +12,18 @@ class DefaultConfig(object):
     voca_length_tgt = 456
     dict_tgt = None     # will be updated in the main.py
 
-    epoch = 5
-    batch_size = 32
+    epoch = 200
+    batch_size = 16
     num_worker = 0
     lr = 0.001
     weight_decay = 0e-5
     lr_decay = 0.5
+    attention = 'dot'
 
     print_inter = 20
     val_inter = 2000
 
-    beam_size = 5
+    beam_size = 1
     max_tgt_len = 25
     hidden_size_encoder = 256
     hidden_size_decoder = 256

@@ -11,9 +11,20 @@ import utils
 import codecs
 import optims
 import metrics
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 opt = config.DefaultConfig()
 
+
+def plotlc(x, y, figname='learning_curve'):
+    plt.plot(x, y)
+    plt.title('learning curve')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    # plt.show()
+    plt.savefig(figname)
 
 def load_data(train):
     print("loading data...")
@@ -52,11 +63,10 @@ def train(model, trainloader, validloader, params):
     optimizer = optims.Optim('adam', opt.lr, opt.max_grad_norm, opt.lr_decay, opt.start_decay_at)
     optimizer.set_parameters(model.parameters())
     # optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
-    previous_loss = 1e10
     pEpoch = []
     pLoss = []
     iter_all = 0
-    total_loss, total_num = 0, 0
+
     for epoch in range(opt.epoch):
         for i, (input, target, src_len, tgt_len, inputstr, targetstr) in enumerate(trainloader):
             if opt.use_cuda:
@@ -94,6 +104,14 @@ def train(model, trainloader, validloader, params):
                               % (epoch, params['report_loss'], time.time() - params['report_time'],
                                  params['updates'], params['report_correct'] * 100.0 / params['report_total']))
                 print('evaluating after %d updates...\r' % params['updates'])
+
+                # learing curve
+                iter_all += opt.val_inter
+                avgloss = params['report_loss'] / opt.val_inter
+                pEpoch.append(iter_all)
+                pLoss.append(avgloss)
+                plotlc(pEpoch, pLoss)
+
                 score = valid(model, validloader, params)
                 for metric in opt.metrics:
                     params[metric].append(score[metric])
@@ -104,7 +122,6 @@ def train(model, trainloader, validloader, params):
                         #            params['updates'])
                 params['report_loss'], params['report_time'] = 0, time.time()
                 params['report_correct'], params['report_total'] = 0, 0
-
 
 
         # if params['updates'] % config.save_interval == 0:
