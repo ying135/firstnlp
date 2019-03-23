@@ -1,4 +1,6 @@
 # This is my first nlp code, seq2seq code to translate
+with attention 
+with beam search
 
 ## preprocess.py
 ### data (dictionary) structrue
